@@ -11,6 +11,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  image_picker: ^0.8.5+3
   cupertino_icons: ^1.0.2
 
 dev_dependencies:
@@ -26,3 +27,4 @@ flutter:
     - assets/ic_rs1.png
     - assets/ic_rs2.png
     - assets/ic_rs3.png
+    - assets/
