@@ -1,0 +1,28 @@
+name: myd_resorts
+description: Um novo projeto Flutter.
+
+publish_to: 'none' # Remova esta linha se for publicar o pacote.
+
+version: 1.0.0+1
+
+environment:
+  sdk: ">=2.17.0 <3.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  image_picker: ^0.8.5+3
+  cupertino_icons: ^1.0.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^2.0.0  # Certifique-se de que a linha está correta
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/ic_logo.png
+    - assets/ic_rs3.png
+    
