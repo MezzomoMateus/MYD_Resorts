@@ -1,29 +1,41 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io'; // Para manipular arquivos de imagem
+import 'package:path/path.dart' as p; // Para manipular caminhos de arquivo
+import 'package:sqflite/sqflite.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:intl/intl.dart'; // Para formatação de moeda
+import 'package:flutter_masked_text2/flutter_masked_text2.dart'; // Para máscaras de entrada
 
-void main() {
-  runApp(const MyApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final database = await DatabaseHelper.instance.database;
+  runApp(MyApp(database: database));
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final Database database;
+
+  const MyApp({super.key, required this.database});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: InitialScreen(),
+      home: InitialScreen(database: database),
       routes: {
-        '/resorts': (context) => ResortsScreen(),
-        '/cadastro': (context) => CadastroScreen(),
+        '/resorts': (context) => ResortsScreen(database: database),
+        '/cadastro': (context) => CadastroScreen(database: database),
+        '/confirmacao': (context) => const ConfirmacaoScreen(),
       },
     );
   }
 }
 
 class InitialScreen extends StatelessWidget {
-  const InitialScreen({super.key});
+  final Database database;
+
+  const InitialScreen({super.key, required this.database});
 
   @override
   Widget build(BuildContext context) {
@@ -49,8 +61,7 @@ class InitialScreen extends StatelessWidget {
                 Navigator.pushNamed(context, '/resorts');
               },
               style: ElevatedButton.styleFrom(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 60, vertical: 15),
+                padding: const EdgeInsets.symmetric(horizontal: 60, vertical: 15),
                 backgroundColor: Colors.white,
               ),
               child: const Text(
@@ -70,59 +81,59 @@ class InitialScreen extends StatelessWidget {
 }
 
 class ResortsScreen extends StatefulWidget {
-  const ResortsScreen({super.key});
+  final Database database;
+
+  const ResortsScreen({super.key, required this.database});
 
   @override
   _ResortsScreenState createState() => _ResortsScreenState();
 }
 
 class _ResortsScreenState extends State<ResortsScreen> {
-  List<Map<String, dynamic>> resorts = [
-    {
-      'nome': 'Hotel Caballero',
-      'localizacao': 'Madrid, ESP',
-      'preco': r'R$ 780,00 P/dia',
-      'estrelas': 4,
-      'imagem': 'assets/ic_rs3.png',
-      'selected': false,
-    },
-  ];
+  List<Map<String, dynamic>> resorts = [];
 
-  void _adicionarResort(Map<String, dynamic> novoResort) {
+  @override
+  void initState() {
+    super.initState();
+    _carregarResorts();
+  }
+
+  Future<void> _carregarResorts() async {
+    final resortsCarregados = await DatabaseHelper.instance.getResorts();
     setState(() {
-      novoResort['selected'] = false;
-      resorts.add(novoResort);
+      resorts = resortsCarregados;
     });
   }
 
-  void _editarResort(int index, Map<String, dynamic> resortAtualizado) {
-    setState(() {
-      resortAtualizado['selected'] = false;
-      resorts[index] = resortAtualizado;
-    });
+  void _adicionarResort(Map<String, dynamic> novoResort) async {
+    await DatabaseHelper.instance.insertResort(novoResort);
+    _carregarResorts();
   }
 
-  void _excluirResort(int index) {
-    setState(() {
-      resorts.removeAt(index);
-    });
+  void _editarResort(int index, Map<String, dynamic> resortAtualizado) async {
+    final id = resorts[index]['id'];
+    await DatabaseHelper.instance.updateResort(id, resortAtualizado);
+    _carregarResorts();
   }
 
-  void _editarResortCallback(int index) async {
+  void _excluirResort(int index) async {
+    final id = resorts[index]['id'];
+    await DatabaseHelper.instance.deleteResort(id);
+    _carregarResorts();
+  }
+
+  void _editarResortTelaCheia(int index) {
     final resort = resorts[index];
-    final resultado = await Navigator.pushNamed(
+    Navigator.push(
       context,
-      '/cadastro',
-      arguments: {
-        'resort': resort,
-        'isEdit': true,
-        'index': index,
-      },
-    );
-
-    if (resultado != null) {
-      _editarResort(index, resultado as Map<String, dynamic>);
-    }
+      MaterialPageRoute(
+        builder: (context) => CadastroScreen(database: widget.database, resort: resort),
+      ),
+    ).then((updatedResort) {
+      if (updatedResort != null) {
+        _editarResort(index, updatedResort);
+      }
+    });
   }
 
   @override
@@ -132,37 +143,6 @@ class _ResortsScreenState extends State<ResortsScreen> {
       appBar: AppBar(
         title: const Text('Resorts'),
         backgroundColor: Colors.black,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.edit),
-            onPressed: () {
-              final selectedResorts =
-                  resorts.where((resort) => resort['selected']).toList();
-              if (selectedResorts.length == 1) {
-                final index = resorts.indexOf(selectedResorts[0]);
-                _editarResortCallback(index);
-              } else if (selectedResorts.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                      content: Text('Nenhum resort selecionado para editar')),
-                );
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                      content: Text('Selecione apenas um resort para editar')),
-                );
-              }
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.delete),
-            onPressed: () {
-              setState(() {
-                resorts.removeWhere((resort) => resort['selected']);
-              });
-            },
-          ),
-        ],
       ),
       body: ListView.builder(
         itemCount: resorts.length,
@@ -174,14 +154,8 @@ class _ResortsScreenState extends State<ResortsScreen> {
             location: resort['localizacao'],
             price: resort['preco'],
             rating: resort['estrelas'],
-            isSelected: resort['selected'],
-            onSelectedChanged: (bool? value) {
-              setState(() {
-                resort['selected'] = value!;
-              });
-            },
             onDelete: () => _excluirResort(index),
-            onEdit: () => _editarResortCallback(index),
+            onEdit: () => _editarResortTelaCheia(index), // Adicionado o método de edição
           );
         },
       ),
@@ -205,8 +179,6 @@ class ResortCard extends StatelessWidget {
   final String location;
   final String price;
   final int rating;
-  final bool isSelected;
-  final ValueChanged<bool?> onSelectedChanged;
   final VoidCallback onDelete;
   final VoidCallback onEdit;
 
@@ -217,217 +189,65 @@ class ResortCard extends StatelessWidget {
     required this.location,
     required this.price,
     required this.rating,
-    required this.isSelected,
-    required this.onSelectedChanged,
     required this.onDelete,
     required this.onEdit,
   });
 
   @override
   Widget build(BuildContext context) {
-    Widget imageWidget;
-    if (imageUrl.startsWith('assets/')) {
-      imageWidget = Image.asset(
-        imageUrl,
-        width: 80,
-        height: 80,
-        fit: BoxFit.cover,
-      );
-    } else if (imageUrl.isNotEmpty) {
-      imageWidget = Image.file(
-        File(imageUrl),
-        width: 80,
-        height: 80,
-        fit: BoxFit.cover,
-      );
-    } else {
-      imageWidget = Container(
-        width: 80,
-        height: 80,
-        color: Colors.grey,
-        child: const Icon(Icons.image, color: Colors.white),
-      );
-    }
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 10),
-      child: Card(
-        color: Colors.grey[400],
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(15),
-        ),
-        child: ListTile(
-          contentPadding: const EdgeInsets.all(10),
-          leading: ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: imageWidget,
-          ),
-          title: Text(
-            name,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          subtitle: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 5),
-              Row(
-                children: List.generate(
-                  5,
-                  (index) => Icon(
-                    index < rating ? Icons.star : Icons.star_border,
-                    color: Colors.amber,
-                  ),
-                ),
+    return Card(
+      color: Colors.grey[400],
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      child: ListTile(
+        contentPadding: const EdgeInsets.all(10),
+        leading: imageUrl.isNotEmpty
+            ? Image.file(File(imageUrl), width: 80, height: 80, fit: BoxFit.cover)
+            : Container(
+                width: 80,
+                height: 80,
+                color: Colors.grey,
+                child: const Icon(Icons.image, color: Colors.white),
               ),
-              const SizedBox(height: 5),
-              Text(location),
-              const SizedBox(height: 5),
-              Text(
-                price,
-                style: const TextStyle(
-                  fontSize: 16,
-                  color: Colors.green,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-          trailing: Checkbox(
-            value: isSelected,
-            onChanged: onSelectedChanged,
-          ),
+        title: Text(
+          name,
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
-      ),
-    );
-  }
-}
-
-class CadastroScreen extends StatefulWidget {
-  const CadastroScreen({super.key});
-
-  @override
-  _CadastroScreenState createState() => _CadastroScreenState();
-}
-
-class _CadastroScreenState extends State<CadastroScreen> {
-  final _nomeController = TextEditingController();
-  final _estrelasController = TextEditingController();
-  final _localizacaoController = TextEditingController();
-  final _precoController = TextEditingController();
-  File? _imagem;
-
-  bool isEdit = false;
-  int editIndex = -1;
-
-  @override
-  void didChangeDependencies() {
-    final args =
-        ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
-    if (args != null) {
-      isEdit = args['isEdit'] ?? false;
-      if (isEdit) {
-        final resort = args['resort'] as Map<String, dynamic>;
-        editIndex = args['index'] ?? -1;
-        _nomeController.text = resort['nome'];
-        _estrelasController.text = resort['estrelas'].toString();
-        _localizacaoController.text = resort['localizacao'];
-        _precoController.text = resort['preco'].replaceAll('R\$ ', '');
-        if (resort['imagem'].toString().startsWith('assets/')) {
-          // Imagem é um asset
-          _imagem = null;
-        } else {
-          _imagem = resort['imagem'] != null && resort['imagem'].isNotEmpty
-              ? File(resort['imagem'])
-              : null;
-        }
-      }
-    }
-    super.didChangeDependencies();
-  }
-
-  Future<void> _pickImage() async {
-    final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
-
-    if (pickedFile != null) {
-      setState(() {
-        _imagem = File(pickedFile.path);
-      });
-    }
-  }
-
-  void _confirmarCadastro() {
-    final novoResort = {
-      'nome': _nomeController.text,
-      'estrelas': int.tryParse(_estrelasController.text) ?? 0,
-      'localizacao': _localizacaoController.text,
-      'preco': 'R\$ ${_precoController.text}',
-      'imagem': _imagem?.path ?? 'assets/ic_rs3.png',
-      'selected': false,
-    };
-
-    Navigator.pop(context, novoResort);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    Widget imageWidget;
-    if (_imagem != null) {
-      imageWidget = Image.file(_imagem!, fit: BoxFit.cover);
-    } else {
-      imageWidget = const Center(child: Icon(Icons.add_a_photo));
-    }
-
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(isEdit ? 'Editar Resort' : 'Cadastrar Resort'),
-        backgroundColor: Colors.black,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            TextField(
-              controller: _nomeController,
-              decoration: const InputDecoration(labelText: 'Nome do Resort'),
-            ),
-            TextField(
-              controller: _estrelasController,
-              keyboardType: TextInputType.number,
-              decoration:
-                  const InputDecoration(labelText: 'Quantidade de Estrelas'),
-            ),
-            TextField(
-              controller: _localizacaoController,
-              decoration: const InputDecoration(labelText: 'Localização'),
-            ),
-            TextField(
-              controller: _precoController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'Valor do Resort'),
-            ),
-            const SizedBox(height: 10),
-            GestureDetector(
-              onTap: _pickImage,
-              child: Container(
-                height: 150,
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey),
+            const SizedBox(height: 5),
+            Row(
+              children: List.generate(
+                5,
+                (index) => Icon(
+                  index < rating ? Icons.star : Icons.star_border,
+                  color: Colors.amber,
                 ),
-                child: imageWidget,
               ),
             ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: _confirmarCadastro,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green,
+            const SizedBox(height: 5),
+            Text(location),
+            const SizedBox(height: 5),
+            Text(
+              price,
+              style: const TextStyle(
+                fontSize: 16,
+                color: Colors.green,
+                fontWeight: FontWeight.bold,
               ),
-              child: Text(isEdit ? 'Salvar Alterações' : 'Cadastrar'),
+            ),
+          ],
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.edit),
+              onPressed: onEdit,
+            ),
+            IconButton(
+              icon: const Icon(Icons.delete),
+              onPressed: onDelete,
             ),
           ],
         ),
@@ -436,3 +256,182 @@ class _CadastroScreenState extends State<CadastroScreen> {
   }
 }
 
+class CadastroScreen extends StatefulWidget {
+  final Database database;
+  final Map<String, dynamic>? resort;
+
+  const CadastroScreen({super.key, required this.database, this.resort});
+
+  @override
+  _CadastroScreenState createState() => _CadastroScreenState();
+}
+
+class _CadastroScreenState extends State<CadastroScreen> {
+  final _nomeController = TextEditingController();
+  final _localizacaoController = TextEditingController();
+  final _precoController = MoneyMaskedTextController(
+    decimalSeparator: ',',
+    thousandSeparator: '.',
+    leftSymbol: 'R\$ ',
+  );
+  final _estrelasController = TextEditingController();
+  File? _imagem;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.resort != null) {
+      _nomeController.text = widget.resort!['nome'];
+      _localizacaoController.text = widget.resort!['localizacao'];
+      _precoController.text = widget.resort!['preco'].replaceAll('R\$ ', ''); // Remove o símbolo da moeda
+      _estrelasController.text = widget.resort!['estrelas'].toString();
+      _imagem = File(widget.resort!['imagem']);
+    }
+  }
+
+  Future<void> _selecionarImagem() async {
+    final picker = ImagePicker();
+    final imagemSelecionada = await picker.pickImage(source: ImageSource.gallery);
+    if (imagemSelecionada != null) {
+      setState(() {
+        _imagem = File(imagemSelecionada.path);
+      });
+    }
+  }
+
+  void _salvar() {
+    if (_nomeController.text.isEmpty ||
+        _localizacaoController.text.isEmpty ||
+        _precoController.text.isEmpty ||
+        _estrelasController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Todos os campos são obrigatórios.')),
+      );
+      return;
+    }
+
+    final novoResort = {
+      'nome': _nomeController.text,
+      'localizacao': _localizacaoController.text,
+      'preco': _precoController.text,
+      'estrelas': int.tryParse(_estrelasController.text) ?? 0,
+      'imagem': _imagem?.path ?? '',
+    };
+
+    Navigator.pop(context, novoResort);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Cadastro de Resort'),
+        backgroundColor: Colors.black,
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            TextField(
+              controller: _nomeController,
+              decoration: const InputDecoration(labelText: 'Nome do Resort'),
+            ),
+            TextField(
+              controller: _localizacaoController,
+              decoration: const InputDecoration(labelText: 'Localização'),
+            ),
+            TextField(
+              controller: _precoController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: 'Preço'),
+            ),
+            TextField(
+              controller: _estrelasController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: 'Número de Estrelas'),
+            ),
+            const SizedBox(height: 10),
+            ElevatedButton(
+              onPressed: _selecionarImagem,
+              child: const Text('Selecionar Imagem'),
+            ),
+            const SizedBox(height: 10),
+            if (_imagem != null)
+              Image.file(_imagem!, width: 100, height: 100, fit: BoxFit.cover),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: _salvar,
+              child: const Text('Salvar'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class ConfirmacaoScreen extends StatelessWidget {
+  const ConfirmacaoScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Confirmação'),
+        backgroundColor: Colors.black,
+      ),
+      body: const Center(
+        child: Text(
+          'Operação realizada com sucesso!',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+      ),
+    );
+  }
+}
+
+class DatabaseHelper {
+  static final DatabaseHelper instance = DatabaseHelper._instance();
+  static Database? _database;
+
+  DatabaseHelper._instance();
+
+  Future<Database> get database async {
+    _database ??= await _initDatabase();
+    return _database!;
+  }
+
+  Future<Database> _initDatabase() async {
+    final directory = await getApplicationDocumentsDirectory();
+    final path = p.join(directory.path, 'resorts.db');
+    return await openDatabase(
+      path,
+      version: 1,
+      onCreate: (db, version) {
+        return db.execute(
+          'CREATE TABLE resorts(id INTEGER PRIMARY KEY AUTOINCREMENT, nome TEXT, localizacao TEXT, preco TEXT, estrelas INTEGER, imagem TEXT)',
+        );
+      },
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> getResorts() async {
+    final db = await database;
+    return await db.query('resorts');
+  }
+
+  Future<int> insertResort(Map<String, dynamic> resort) async {
+    final db = await database;
+    return await db.insert('resorts', resort);
+  }
+
+  Future<int> updateResort(int id, Map<String, dynamic> resort) async {
+    final db = await database;
+    return await db.update('resorts', resort, where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<int> deleteResort(int id) async {
+    final db = await database;
+    return await db.delete('resorts', where: 'id = ?', whereArgs: [id]);
+  }
+}
