@@ -65,6 +65,7 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.3.1"
+<<<<<<< HEAD
   ffi:
     dependency: transitive
     description:
@@ -73,6 +74,8 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.1.3"
+=======
+>>>>>>> 166bac63af0f70f8690789bb04bcf01f4fb27d3c
   file_selector_linux:
     dependency: transitive
     description:
@@ -118,6 +121,7 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.0.3"
+<<<<<<< HEAD
   flutter_masked_text2:
     dependency: "direct main"
     description:
@@ -126,6 +130,8 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.9.1"
+=======
+>>>>>>> 166bac63af0f70f8690789bb04bcf01f4fb27d3c
   flutter_plugin_android_lifecycle:
     dependency: transitive
     description:
@@ -224,6 +230,7 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.2.1+1"
+<<<<<<< HEAD
   intl:
     dependency: "direct main"
     description:
@@ -232,6 +239,8 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.19.0"
+=======
+>>>>>>> 166bac63af0f70f8690789bb04bcf01f4fb27d3c
   leak_tracker:
     dependency: transitive
     description:
@@ -297,13 +306,18 @@ packages:
     source: hosted
     version: "1.0.6"
   path:
+<<<<<<< HEAD
     dependency: "direct main"
+=======
+    dependency: transitive
+>>>>>>> 166bac63af0f70f8690789bb04bcf01f4fb27d3c
     description:
       name: path
       sha256: "087ce49c3f0dc39180befefc60fdb4acd8f8620e5682fe2476afd0b3688bb4af"
       url: "https://pub.dev"
     source: hosted
     version: "1.9.0"
+<<<<<<< HEAD
   path_provider:
     dependency: "direct main"
     description:
@@ -360,6 +374,8 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.1.5"
+=======
+>>>>>>> 166bac63af0f70f8690789bb04bcf01f4fb27d3c
   plugin_platform_interface:
     dependency: transitive
     description:
@@ -381,6 +397,7 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.10.0"
+<<<<<<< HEAD
   sqflite:
     dependency: "direct main"
     description:
@@ -437,6 +454,8 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.4.6"
+=======
+>>>>>>> 166bac63af0f70f8690789bb04bcf01f4fb27d3c
   stack_trace:
     dependency: transitive
     description:
@@ -461,6 +480,7 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.2.0"
+<<<<<<< HEAD
   synchronized:
     dependency: transitive
     description:
@@ -469,6 +489,8 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.3.0+3"
+=======
+>>>>>>> 166bac63af0f70f8690789bb04bcf01f4fb27d3c
   term_glyph:
     dependency: transitive
     description:
@@ -517,6 +539,7 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.1.0"
+<<<<<<< HEAD
   xdg_directories:
     dependency: transitive
     description:
@@ -525,6 +548,8 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.1.0"
+=======
+>>>>>>> 166bac63af0f70f8690789bb04bcf01f4fb27d3c
 sdks:
   dart: ">=3.5.0 <4.0.0"
   flutter: ">=3.24.0"
